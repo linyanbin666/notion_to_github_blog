@@ -1,6 +1,6 @@
 import os
 from notion_client import Client
-from notiontomd import NotionToMarkdown
+# from notiontomd import NotionToMarkdown
 import re
 from github import Github
 from github import GithubException
@@ -21,7 +21,7 @@ class Notion:
         self.notion = Client(auth=token)
         self.database_id = database_id
     
-    def get_page_id(self, data: dict) -> list:
+    def get_page_id(self, data: dict) -> str:
         rich_text_node = data['properties'].get('Article', {})
         mentions = []
         if rich_text_node['type'] != 'rich_text':
@@ -225,6 +225,7 @@ def github_action_env(key):
 
 def main():
     notion_token = os.environ[github_action_env('NOTION_TOKEN')]
+    os.environ['NOTION_TOKEN'] = notion_token
     notion_database_id = os.environ[github_action_env('NOTION_DATABASE_ID')]
     img_store_type = os.getenv(github_action_env('IMG_STORE_TYPE')) or 'local' # 可选 local, github
     img_store_path_prefix = os.getenv(github_action_env('IMG_STORE_PATH_PREFIX')) or 'static/notionimg'
@@ -233,6 +234,7 @@ def main():
     img_store_github_repo = os.getenv(github_action_env('IMG_STORE_GITHUB_REPO'))
     img_store_github_branch = os.getenv(github_action_env('IMG_STORE_GITHUB_BRANCH'))
     md_store_path_prefix = os.getenv(github_action_env('MD_STORE_PATH_PREFIX')) or 'content/posts' # 保存markdown文件的目录
+    from notion2md.exporter import string_exporter
 
     notion = Notion(notion_token, notion_database_id)
     page_nodes = notion.items_changed()
@@ -244,7 +246,8 @@ def main():
         page_id = notion.get_page_id(page_node)
         # 将page转化为markdown
         logger.info(f'parse <<{notion.title(page_node)}>>...')
-        markdown_text = NotionToMarkdown(notion_token, page_id).parse()
+        # markdown_text = NotionToMarkdown(notion_token, page_id).parse()
+        markdown_text = string_exporter(block_id=page_id, unzipped=True)
         # 提取markdown内的图片，放入自己的图床替换链接
         logger.info(f'replace img link in article <<{notion.title(page_node)}>>...')
         img_store_kwargs = {
